@@ -181,7 +181,7 @@ copy_private_headers() {
     fi
     echo "${GREEN}Copying private headers...${NC}"
     mkdir -p "$OUTPUT_INCLUDES"
-    cp -r "$IOKIT_HEADERS_PATH" "$OUTPUT_INCLUDES/IOKit"
+    cp -r -L "$IOKIT_HEADERS_PATH" "$OUTPUT_INCLUDES/IOKit"
     rm "$OUTPUT_INCLUDES/IOKit/storage/IOMedia.h" # needed to pass QEMU check
     # patch headers
     LC_ALL=C sed -i '' -e 's/#if KERNEL_USER32/#if 0/g' $(find "$OUTPUT_INCLUDES/IOKit" -type f)
@@ -354,9 +354,9 @@ build () {
         DIR="$1"
         NAME="$(basename "$DIR")"
     else
-        URL=$1
+        URL="$1"
         shift 1
-        FILE="$(basename $URL)"
+        FILE="$(basename "$URL")"
         NAME="${FILE%.tar.*}"
         DIR="$BUILD_DIR/$NAME"
     fi
@@ -404,14 +404,14 @@ meson_build () {
 }
 
 build_angle () {
-    OLD_PATH=$PATH
+    OLD_PATH="$PATH"
     export PATH="$(realpath "$BUILD_DIR/depot_tools.git"):$OLD_PATH"
     pwd="$(pwd)"
     cd "$BUILD_DIR/WebKit.git/Source/ThirdParty/ANGLE"
-    env -i PATH=$PATH xcodebuild archive -archivePath "ANGLE" \
+    env -i PATH="$PATH" xcodebuild archive -archivePath "ANGLE" \
                                          -scheme "ANGLE" \
-                                         -sdk $SDK \
-                                         -arch $ARCH \
+                                         -sdk "$SDK" \
+                                         -arch "$ARCH" \
                                          -configuration Release \
                                          WEBCORE_LIBRARY_DIR="/usr/local/lib" \
                                          NORMAL_UMBRELLA_FRAMEWORKS_DIR="" \
@@ -421,26 +421,26 @@ build_angle () {
                                          XROS_DEPLOYMENT_TARGET="1.0"
     # FIXME: update minver and remove this hack
     if [ "$SDK" == "iphoneos" ]; then
-        find "ANGLE.xcarchive/Products/usr/local/lib/" -name '*.dylib' -exec xcrun vtool -set-version-min ios $SDKMINVER 17.2 -replace -output \{\} \{\} \;
+        find "ANGLE.xcarchive/Products/usr/local/lib/" -name '*.dylib' -exec xcrun vtool -set-version-min ios "$SDKMINVER" 17.2 -replace -output \{\} \{\} \;
     fi
     rsync -a "ANGLE.xcarchive/Products/usr/local/lib/" "$PREFIX/lib"
     rsync -a "include/" "$PREFIX/include"
     cd "$pwd"
-    export PATH=$OLD_PATH
+    export PATH="$OLD_PATH"
 }
 
 build_hypervisor () {
-    OLD_PATH=$PATH
+    OLD_PATH="$PATH"
     export PATH="$(realpath "$BUILD_DIR/depot_tools.git"):$OLD_PATH"
     pwd="$(pwd)"
     cd "$BUILD_DIR/Hypervisor.git"
 
     echo "${GREEN}Building Hypervisor...${NC}"
-    env -i PATH=$PATH xcodebuild archive -archivePath "Hypervisor" -scheme "Hypervisor" -sdk $SDK -configuration Release
+    env -i PATH="$PATH" xcodebuild archive -archivePath "Hypervisor" -scheme "Hypervisor" -sdk "$SDK" -configuration Release
 
     rsync -a "Hypervisor.xcarchive/Products/Library/Frameworks/" "$PREFIX/Frameworks"
     cd "$pwd"
-    export PATH=$OLD_PATH
+    export PATH="$OLD_PATH"
 }
 
 generate_fake_hypervisor () {
@@ -626,7 +626,7 @@ if [ -z "$CHOST" ]; then
         ;;
     esac
 fi
-CHOST=$CPU-apple-darwin
+CHOST="$CPU-apple-darwin"
 export CHOST
 
 case $PLATFORM in
@@ -791,7 +791,7 @@ rm -f "$BUILD_DIR/meson.cross"
 copy_private_headers
 build_pkg_config
 build_qemu_dependencies
-build $QEMU_DIR --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS
+build "$QEMU_DIR" --cross-prefix="" $QEMU_PLATFORM_BUILD_FLAGS
 build_spice_client
 fixup_all
 # Fake Hypervisor to get iOS Simulator to build
